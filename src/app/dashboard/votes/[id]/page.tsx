@@ -1,334 +1,185 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { getPoll, updatePoll, addParticipant, listParticipants, type Poll, type Participant } from "@/lib/api";
 
 type Status = "active" | "ended" | "draft";
 
-interface Vote {
-  id: string;
-  title: string;
-  description: string;
-  status: Status;
-  type: string;
-  createdAt: string;
-  startDate: string;
-  endDate: string;
-  voterAccess: string;
-  totalVoters: number;
-  options: { name: string; votes: number }[];
-  activity: { time: string; text: string }[];
-  timeLeft: string;
+const VOTE_TYPE_LABELS: Record<string, string> = {
+  single: "Single Choice",
+  multiple: "Multiple Choice",
+  ranked: "Ranked Choice",
+};
+
+const VOTER_ACCESS_LABELS: Record<string, string> = {
+  link: "Share via Link",
+  email: "Email Invite Only",
+};
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
 }
 
-const allVotes: Record<string, Vote> = {
-  "1": {
-    id: "1",
-    title: "Student Council President 2026",
-    description:
-      "Vote for the next student council president. Each student gets one vote. Results will be announced at the assembly on April 3rd.",
-    status: "active",
-    type: "Single Choice",
-    createdAt: "Mar 20, 2026",
-    startDate: "Mar 25, 2026 9:00 AM",
-    endDate: "Apr 2, 2026 5:00 PM",
-    voterAccess: "Email Invite Only",
-    totalVoters: 200,
-    options: [
-      { name: "Alice Johnson", votes: 52 },
-      { name: "Bob Martinez", votes: 38 },
-      { name: "Carol Chen", votes: 22 },
-      { name: "David Kim", votes: 12 },
-    ],
-    activity: [
-      { time: "2 min ago", text: "3 new votes cast" },
-      { time: "15 min ago", text: "5 new votes cast" },
-      { time: "1 hour ago", text: "Reminder email sent to 76 voters" },
-      { time: "3 hours ago", text: "12 new votes cast" },
-      { time: "Yesterday", text: "Vote opened for submissions" },
-    ],
-    timeLeft: "4 days",
-  },
-  "2": {
-    id: "2",
-    title: "Office Lunch Vendor Poll",
-    description:
-      "Help us pick the best lunch vendor for the office. Rank your top choices and the winner will be our go-to for Q2.",
-    status: "active",
-    type: "Ranked Choice",
-    createdAt: "Mar 22, 2026",
-    startDate: "Mar 23, 2026 8:00 AM",
-    endDate: "Mar 28, 2026 6:00 PM",
-    voterAccess: "Share via Link",
-    totalVoters: 25,
-    options: [
-      { name: "Bella Italia", votes: 9 },
-      { name: "Green Bowl", votes: 5 },
-      { name: "Taco Fiesta", votes: 3 },
-      { name: "Sushi Station", votes: 1 },
-    ],
-    activity: [
-      { time: "10 min ago", text: "2 new votes cast" },
-      { time: "2 hours ago", text: "1 new vote cast" },
-      { time: "Yesterday", text: "Poll shared with the team" },
-    ],
-    timeLeft: "Ended",
-  },
-  "3": {
-    id: "3",
-    title: "Club Trip Destination",
-    description:
-      "Vote on where the club should go for the annual trip this summer. All active members are eligible to vote.",
-    status: "ended",
-    type: "Multiple Choice",
-    createdAt: "Mar 1, 2026",
-    startDate: "Mar 3, 2026 12:00 PM",
-    endDate: "Mar 15, 2026 11:59 PM",
-    voterAccess: "Email Invite Only",
-    totalVoters: 45,
-    options: [
-      { name: "Lake Tahoe", votes: 28 },
-      { name: "Grand Canyon", votes: 22 },
-      { name: "Yosemite", votes: 19 },
-      { name: "Zion National Park", votes: 14 },
-    ],
-    activity: [
-      { time: "Mar 15", text: "Vote closed — Lake Tahoe wins" },
-      { time: "Mar 14", text: "8 new votes cast" },
-      { time: "Mar 12", text: "Reminder sent to 12 voters" },
-      { time: "Mar 3", text: "Vote opened for submissions" },
-    ],
-    timeLeft: "Ended",
-  },
-  "4": {
-    id: "4",
-    title: "Board Meeting Date",
-    description:
-      "Please select your preferred date for the upcoming board meeting. We'll go with the most popular option.",
-    status: "draft",
-    type: "Single Choice",
-    createdAt: "Mar 25, 2026",
-    startDate: "—",
-    endDate: "—",
-    voterAccess: "Email Invite Only",
-    totalVoters: 12,
-    options: [
-      { name: "April 10, 2026", votes: 0 },
-      { name: "April 14, 2026", votes: 0 },
-      { name: "April 17, 2026", votes: 0 },
-    ],
-    activity: [{ time: "Mar 25", text: "Draft created" }],
-    timeLeft: "Not started",
-  },
-  "5": {
-    id: "5",
-    title: "Team Building Activity",
-    description:
-      "Pick your top activities for the next team building day. You can select more than one!",
-    status: "ended",
-    type: "Multiple Choice",
-    createdAt: "Feb 28, 2026",
-    startDate: "Mar 1, 2026 9:00 AM",
-    endDate: "Mar 10, 2026 5:00 PM",
-    voterAccess: "Share via Link",
-    totalVoters: 32,
-    options: [
-      { name: "Escape Room", votes: 24 },
-      { name: "Bowling", votes: 18 },
-      { name: "Cooking Class", votes: 15 },
-      { name: "Go-Karts", votes: 12 },
-    ],
-    activity: [
-      { time: "Mar 10", text: "Vote closed — Escape Room wins" },
-      { time: "Mar 8", text: "6 new votes cast" },
-      { time: "Mar 1", text: "Vote opened" },
-    ],
-    timeLeft: "Ended",
-  },
-  "6": {
-    id: "6",
-    title: "New Logo Design",
-    description:
-      "We've narrowed it down to 3 logo concepts. Vote for the one you think best represents our brand.",
-    status: "ended",
-    type: "Single Choice",
-    createdAt: "Feb 10, 2026",
-    startDate: "Feb 12, 2026 10:00 AM",
-    endDate: "Feb 20, 2026 10:00 AM",
-    voterAccess: "Email Invite Only",
-    totalVoters: 60,
-    options: [
-      { name: "Concept A — Modern Minimal", votes: 32 },
-      { name: "Concept B — Bold Gradient", votes: 18 },
-      { name: "Concept C — Classic Serif", votes: 8 },
-    ],
-    activity: [
-      { time: "Feb 20", text: "Vote closed — Concept A wins" },
-      { time: "Feb 18", text: "15 new votes cast" },
-      { time: "Feb 12", text: "Vote opened" },
-    ],
-    timeLeft: "Ended",
-  },
-  "7": {
-    id: "7",
-    title: "Q2 Budget Allocation",
-    description:
-      "Rank the proposed budget categories by priority to help the finance team allocate Q2 funds.",
-    status: "draft",
-    type: "Ranked Choice",
-    createdAt: "Mar 27, 2026",
-    startDate: "—",
-    endDate: "—",
-    voterAccess: "Email Invite Only",
-    totalVoters: 8,
-    options: [
-      { name: "Marketing", votes: 0 },
-      { name: "Engineering", votes: 0 },
-      { name: "Customer Support", votes: 0 },
-      { name: "Operations", votes: 0 },
-    ],
-    activity: [{ time: "Mar 27", text: "Draft created" }],
-    timeLeft: "Not started",
-  },
-  "8": {
-    id: "8",
-    title: "Holiday Party Theme",
-    description:
-      "Pick the theme for this year's holiday party! Results will be announced next Monday.",
-    status: "ended",
-    type: "Single Choice",
-    createdAt: "Jan 20, 2026",
-    startDate: "Jan 22, 2026 9:00 AM",
-    endDate: "Feb 5, 2026 5:00 PM",
-    voterAccess: "Share via Link",
-    totalVoters: 42,
-    options: [
-      { name: "Winter Wonderland", votes: 18 },
-      { name: "Roaring 20s", votes: 14 },
-      { name: "Tropical Luau", votes: 10 },
-    ],
-    activity: [
-      { time: "Feb 5", text: "Vote closed — Winter Wonderland wins" },
-      { time: "Feb 3", text: "9 new votes cast" },
-      { time: "Jan 22", text: "Vote opened" },
-    ],
-    timeLeft: "Ended",
-  },
-  "9": {
-    id: "9",
-    title: "Remote Work Policy Poll",
-    description:
-      "Share your preferences on remote work to help shape our updated policy.",
-    status: "ended",
-    type: "Multiple Choice",
-    createdAt: "Jan 5, 2026",
-    startDate: "Jan 6, 2026 9:00 AM",
-    endDate: "Jan 15, 2026 11:59 PM",
-    voterAccess: "Email Invite Only",
-    totalVoters: 100,
-    options: [
-      { name: "3 days remote / 2 in-office", votes: 52 },
-      { name: "Fully remote", votes: 38 },
-      { name: "2 days remote / 3 in-office", votes: 28 },
-      { name: "Fully in-office", votes: 5 },
-    ],
-    activity: [
-      { time: "Jan 15", text: "Vote closed — 3/2 hybrid wins" },
-      { time: "Jan 12", text: "20 new votes cast" },
-      { time: "Jan 6", text: "Vote opened" },
-    ],
-    timeLeft: "Ended",
-  },
-  "10": {
-    id: "10",
-    title: "Annual Award Nominees",
-    description:
-      "Rank the nominees for the annual team award. The top-ranked nominee wins the award.",
-    status: "ended",
-    type: "Ranked Choice",
-    createdAt: "Dec 1, 2025",
-    startDate: "Dec 5, 2025 9:00 AM",
-    endDate: "Dec 20, 2025 5:00 PM",
-    voterAccess: "Email Invite Only",
-    totalVoters: 120,
-    options: [
-      { name: "Sarah Park", votes: 45 },
-      { name: "Mike Reynolds", votes: 35 },
-      { name: "Priya Sharma", votes: 20 },
-      { name: "Tom Baker", votes: 10 },
-    ],
-    activity: [
-      { time: "Dec 20", text: "Vote closed — Sarah Park wins" },
-      { time: "Dec 15", text: "30 new votes cast" },
-      { time: "Dec 5", text: "Vote opened" },
-    ],
-    timeLeft: "Ended",
-  },
-  "11": {
-    id: "11",
-    title: "Workshop Topic Selection",
-    description:
-      "Which workshop topics are you most interested in? Select all that apply.",
-    status: "ended",
-    type: "Multiple Choice",
-    createdAt: "Nov 15, 2025",
-    startDate: "Nov 16, 2025 9:00 AM",
-    endDate: "Nov 28, 2025 5:00 PM",
-    voterAccess: "Share via Link",
-    totalVoters: 30,
-    options: [
-      { name: "AI & Machine Learning", votes: 22 },
-      { name: "Cloud Architecture", votes: 16 },
-      { name: "Leadership Skills", votes: 12 },
-      { name: "Public Speaking", votes: 9 },
-    ],
-    activity: [
-      { time: "Nov 28", text: "Vote closed — AI/ML wins" },
-      { time: "Nov 22", text: "10 new votes cast" },
-      { time: "Nov 16", text: "Vote opened" },
-    ],
-    timeLeft: "Ended",
-  },
-  "12": {
-    id: "12",
-    title: "Charity Drive Cause",
-    description:
-      "Vote for the cause you'd like our annual charity drive to support this year.",
-    status: "ended",
-    type: "Single Choice",
-    createdAt: "Oct 28, 2025",
-    startDate: "Oct 30, 2025 9:00 AM",
-    endDate: "Nov 10, 2025 5:00 PM",
-    voterAccess: "Email Invite Only",
-    totalVoters: 70,
-    options: [
-      { name: "Education for All", votes: 28 },
-      { name: "Clean Water Initiative", votes: 22 },
-      { name: "Hunger Relief", votes: 15 },
-    ],
-    activity: [
-      { time: "Nov 10", text: "Vote closed — Education for All wins" },
-      { time: "Nov 5", text: "18 new votes cast" },
-      { time: "Oct 30", text: "Vote opened" },
-    ],
-    timeLeft: "Ended",
-  },
-};
+function getTimeLeft(closesAt: string | null, status: Status): string {
+  if (status === "ended") return "Ended";
+  if (status === "draft") return "Not started";
+  if (!closesAt) return "No deadline";
+  const diff = new Date(closesAt).getTime() - Date.now();
+  if (diff <= 0) return "Ended";
+  const days = Math.floor(diff / 86_400_000);
+  const hours = Math.floor((diff % 86_400_000) / 3_600_000);
+  if (days > 0) return `${days} day${days !== 1 ? "s" : ""}`;
+  if (hours > 0) return `${hours} hour${hours !== 1 ? "s" : ""}`;
+  return "< 1 hour";
+}
 
 export default function VoteDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const vote = allVotes[id];
+  const router = useRouter();
+  const [poll, setPoll] = useState<Poll | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [ending, setEnding] = useState(false);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [addError, setAddError] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkAdding, setBulkAdding] = useState(false);
 
-  if (!vote) {
+  useEffect(() => {
+    getPoll(Number(id))
+      .then(({ poll }) => {
+        setPoll(poll);
+        if (poll.voter_access === "email") {
+          listParticipants(Number(id)).then(({ participants }) => setParticipants(participants));
+        }
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  function generateCode(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+      if (i === 3) code += "-";
+    }
+    return code;
+  }
+
+  async function handleAddParticipant(e: React.FormEvent) {
+    e.preventDefault();
+    if (!poll || !newName.trim() || !newEmail.trim()) return;
+    setAddError("");
+    setAdding(true);
+    try {
+      const { participant } = await addParticipant(poll.id, {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        code: generateCode(),
+      });
+      setParticipants((prev) => [...prev, participant]);
+      setPoll((prev) => prev ? { ...prev, totalParticipants: prev.totalParticipants + 1 } : prev);
+      setNewName("");
+      setNewEmail("");
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : "Failed to add participant");
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  function parseLines(raw: string): { name: string; email: string }[] {
+    return raw
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .filter((l) => !l.toLowerCase().startsWith("name")) // skip header rows
+      .map((line) => {
+        const parts = line.split(",").map((p) => p.trim());
+        const email = parts.find((p) => p.includes("@")) ?? "";
+        const name = parts.find((p) => !p.includes("@")) ?? email.split("@")[0];
+        return { name, email };
+      })
+      .filter((v) => v.email.includes("@"));
+  }
+
+  async function handleBulkAdd() {
+    if (!poll) return;
+    setBulkAdding(true);
+    setAddError("");
+    const rows = parseLines(bulkText);
+    const added: Participant[] = [];
+    for (const row of rows) {
+      try {
+        const { participant } = await addParticipant(poll.id, { ...row, code: generateCode() });
+        added.push(participant);
+      } catch {
+        // skip duplicates silently
+      }
+    }
+    setParticipants((prev) => [...prev, ...added]);
+    setPoll((prev) => prev ? { ...prev, totalParticipants: prev.totalParticipants + added.length } : prev);
+    setBulkText("");
+    setShowBulk(false);
+    setBulkAdding(false);
+  }
+
+  function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setBulkText(ev.target?.result as string);
+      setShowBulk(true);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  async function handleEndVote() {
+    if (!poll) return;
+    setEnding(true);
+    try {
+      const { poll: updated } = await updatePoll(poll.id, { status: "ended" });
+      setPoll((prev) => prev ? { ...prev, status: updated.status } : prev);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to end vote");
+    } finally {
+      setEnding(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 rounded bg-slate-200 animate-pulse" />
+        <div className="grid gap-4 sm:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-24 rounded-xl border border-slate-200 bg-white animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !poll) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Vote not found</h1>
-        <p className="mt-2 text-sm text-gray-500">
-          The vote you&apos;re looking for doesn&apos;t exist.
-        </p>
+        <h1 className="text-2xl font-bold text-slate-900">{error || "Vote not found"}</h1>
         <Link
           href="/dashboard/votes"
-          className="mt-6 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+          className="mt-6 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
         >
           Back to My Votes
         </Link>
@@ -336,8 +187,8 @@ export default function VoteDetailPage() {
     );
   }
 
-  const totalCast = vote.options.reduce((sum, o) => sum + o.votes, 0);
-  const leadingVotes = Math.max(...vote.options.map((o) => o.votes));
+  const totalCast = poll.options.reduce((sum, o) => sum + o.vote_count, 0);
+  const leadingVotes = Math.max(...poll.options.map((o) => o.vote_count), 0);
 
   return (
     <div className="space-y-6">
@@ -345,121 +196,215 @@ export default function VoteDetailPage() {
       <div>
         <Link
           href="/dashboard/votes"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
         >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15.75 19.5 8.25 12l7.5-7.5"
-            />
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
           </svg>
           Back to My Votes
         </Link>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{vote.title}</h1>
-            <StatusBadge status={vote.status} />
+            <h1 className="text-2xl font-bold text-slate-900">{poll.title}</h1>
+            <StatusBadge status={poll.status} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/dashboard/votes/${vote.id}/participants`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-              </svg>
-              Participants
-            </Link>
-            <button className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Share Link
-            </button>
-            <button className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Edit
-            </button>
-            {vote.status === "active" && (
-              <button className="rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100">
-                End Vote
+            {poll.voter_access === "email" && (
+              <Link
+                href={`/dashboard/votes/${poll.id}/participants`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                </svg>
+                Participants
+              </Link>
+            )}
+            {poll.status === "active" && (
+              <button
+                onClick={handleEndVote}
+                disabled={ending}
+                className="rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-60"
+              >
+                {ending ? "Ending…" : "End Vote"}
               </button>
             )}
           </div>
         </div>
-        {vote.description && (
-          <p className="mt-2 max-w-2xl text-sm text-gray-500">
-            {vote.description}
-          </p>
+        {poll.description && (
+          <p className="mt-2 max-w-2xl text-sm text-slate-500">{poll.description}</p>
         )}
       </div>
 
+      {error && (
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
+
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Voters"
-          value={String(vote.totalVoters)}
-          sub="Invited"
-        />
+        <StatCard label="Total Voters" value={String(poll.totalParticipants)} sub="Invited" />
         <StatCard
           label="Votes Cast"
-          value={String(totalCast)}
-          sub={
-            vote.totalVoters > 0
-              ? `${Math.round((totalCast / vote.totalVoters) * 100)}% turnout`
-              : "0% turnout"
-          }
+          value={String(poll.votedCount)}
+          sub={poll.totalParticipants > 0
+            ? `${Math.round((poll.votedCount / poll.totalParticipants) * 100)}% turnout`
+            : "0% turnout"}
         />
-        <StatCard label="Options" value={String(vote.options.length)} sub="Candidates" />
-        <StatCard label="Time Left" value={vote.timeLeft} sub={vote.endDate !== "—" ? `Ends ${vote.endDate}` : "Not scheduled"} />
+        <StatCard label="Options" value={String(poll.options.length)} sub="Candidates" />
+        <StatCard
+          label="Time Left"
+          value={getTimeLeft(poll.closes_at, poll.status)}
+          sub={poll.closes_at ? `Ends ${formatDate(poll.closes_at)}` : "No deadline"}
+        />
       </div>
+
+      {/* Participants quick-add (email polls only) */}
+      {poll.voter_access === "email" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Participants</h2>
+              <p className="text-sm text-slate-500 mt-0.5">{participants.length} invited · {participants.filter(p => p.has_voted).length} voted</p>
+            </div>
+            <Link
+              href={`/dashboard/votes/${poll.id}/participants`}
+              className="text-sm font-medium text-violet-600 hover:text-violet-500"
+            >
+              Manage all
+            </Link>
+          </div>
+
+          <form onSubmit={handleAddParticipant} className="flex flex-col gap-3 sm:flex-row">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Full name"
+              className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none sm:w-1/3"
+            />
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="Email address"
+              className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none sm:flex-1"
+            />
+            <button
+              type="submit"
+              disabled={adding || !newName.trim() || !newEmail.trim()}
+              className="shrink-0 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+            >
+              {adding ? "Adding…" : "Add"}
+            </button>
+          </form>
+
+          {addError && <p className="text-sm text-red-600">{addError}</p>}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBulk(!showBulk)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+              {showBulk ? "Hide bulk add" : "Bulk add"}
+            </button>
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+              </svg>
+              Upload CSV
+              <input type="file" accept=".csv,.txt" className="sr-only" onChange={handleCsvUpload} />
+            </label>
+          </div>
+
+          {showBulk && (
+            <div className="space-y-2">
+              <textarea
+                rows={5}
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                placeholder={"Name, email@example.com\nJane Smith, jane@example.com\njohn@example.com"}
+                className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-mono shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+              />
+              <p className="text-xs text-slate-400">One participant per line. Format: Name, email — or just an email.</p>
+              <button
+                type="button"
+                onClick={handleBulkAdd}
+                disabled={bulkAdding || !bulkText.trim()}
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+              >
+                {bulkAdding ? "Adding…" : `Add ${parseLines(bulkText).length || ""} Participants`}
+              </button>
+            </div>
+          )}
+
+          {participants.length > 0 && (
+            <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 max-h-56 overflow-y-auto">
+              {participants.slice(-5).reverse().map((p) => (
+                <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                  <div>
+                    <p className="font-medium text-slate-900">{p.name}</p>
+                    <p className="text-xs text-slate-400">{p.email}</p>
+                  </div>
+                  <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
+                    p.has_voted
+                      ? "bg-green-50 text-green-700 ring-green-600/20"
+                      : "bg-yellow-50 text-yellow-700 ring-yellow-600/20"
+                  }`}>
+                    {p.has_voted ? "Voted" : "Pending"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Results */}
-        <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {vote.status === "ended" ? "Final Results" : vote.status === "active" ? "Live Results" : "Results"}
+        <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-slate-900">
+            {poll.status === "ended" ? "Final Results" : poll.status === "active" ? "Live Results" : "Results"}
           </h2>
 
           {totalCast === 0 ? (
             <div className="mt-6 py-8 text-center">
-              <p className="text-sm text-gray-500">No votes have been cast yet.</p>
+              <p className="text-sm text-slate-500">No votes have been cast yet.</p>
             </div>
           ) : (
-            <div className="mt-5 space-y-4">
-              {[...vote.options]
-                .sort((a, b) => b.votes - a.votes)
+            <div className="mt-5 space-y-3">
+              {[...poll.options]
+                .sort((a, b) => b.vote_count - a.vote_count)
                 .map((option) => {
-                  const pct =
-                    totalCast > 0
-                      ? Math.round((option.votes / totalCast) * 100)
-                      : 0;
-                  const isLeading = option.votes === leadingVotes;
+                  const pct = totalCast > 0 ? Math.round((option.vote_count / totalCast) * 100) : 0;
+                  const isLeading = option.vote_count === leadingVotes && leadingVotes > 0;
                   return (
-                    <div key={option.name}>
-                      <div className="flex items-center justify-between text-sm">
-                        <span
-                          className={`font-medium ${isLeading ? "text-indigo-700" : "text-gray-700"}`}
-                        >
-                          {option.name}
-                          {isLeading && (
-                            <span className="ml-2 text-xs text-indigo-500">
-                              {vote.status === "ended" ? "Winner" : "Leading"}
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-gray-500">
-                          {option.votes} votes ({pct}%)
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-3 w-full rounded-full bg-gray-100">
-                        <div
-                          className={`h-3 rounded-full ${isLeading ? "bg-indigo-600" : "bg-gray-300"}`}
-                          style={{ width: `${pct}%` }}
-                        />
+                    <div key={option.id} className={`rounded-lg p-3 ${isLeading ? "bg-violet-50 border border-violet-100" : "bg-slate-50"}`}>
+                      <div className="flex items-center gap-3">
+                        {option.image_url && (
+                          <img src={option.image_url} alt={option.label} className="h-10 w-10 rounded-full object-cover shrink-0 border-2 border-white shadow-sm" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 flex-wrap text-sm">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-semibold ${isLeading ? "text-violet-700" : "text-slate-800"}`}>{option.label}</span>
+                              {option.candidate_position && <span className="text-xs text-slate-400">{option.candidate_position}</span>}
+                              {option.party && (
+                                <span className={`text-xs rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${isLeading ? "bg-violet-100 text-violet-700 ring-violet-600/20" : "bg-slate-100 text-slate-500 ring-slate-400/20"}`}>
+                                  {option.party}
+                                </span>
+                              )}
+                              {isLeading && <span className="text-xs font-semibold text-violet-500">{poll.status === "ended" ? "Winner" : "Leading"}</span>}
+                            </div>
+                            <span className="shrink-0 text-xs text-slate-500">{option.vote_count} votes ({pct}%)</span>
+                          </div>
+                          <div className="mt-2 h-2 w-full rounded-full bg-white/80 border border-slate-100">
+                            <div className={`h-2 rounded-full transition-all ${isLeading ? "bg-violet-600" : "bg-slate-300"}`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -470,72 +415,60 @@ export default function VoteDetailPage() {
 
         {/* Sidebar info */}
         <div className="space-y-6">
-          {/* Details card */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6">
-            <h2 className="text-sm font-semibold text-gray-900">Details</h2>
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-sm font-semibold text-slate-900">Details</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex justify-between">
-                <dt className="text-gray-500">Type</dt>
-                <dd className="font-medium text-gray-700">{vote.type}</dd>
+                <dt className="text-slate-500">Type</dt>
+                <dd className="font-medium text-slate-700">{VOTE_TYPE_LABELS[poll.vote_type]}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Access</dt>
-                <dd className="font-medium text-gray-700">
-                  {vote.voterAccess}
-                </dd>
+                <dt className="text-slate-500">Access</dt>
+                <dd className="font-medium text-slate-700">{VOTER_ACCESS_LABELS[poll.voter_access]}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Created</dt>
-                <dd className="font-medium text-gray-700">{vote.createdAt}</dd>
+                <dt className="text-slate-500">Created</dt>
+                <dd className="font-medium text-slate-700">{formatDate(poll.created_at)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Start</dt>
-                <dd className="font-medium text-gray-700">{vote.startDate}</dd>
+                <dt className="text-slate-500">Start</dt>
+                <dd className="font-medium text-slate-700">{formatDate(poll.starts_at)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">End</dt>
-                <dd className="font-medium text-gray-700">{vote.endDate}</dd>
+                <dt className="text-slate-500">End</dt>
+                <dd className="font-medium text-slate-700">{formatDate(poll.closes_at)}</dd>
               </div>
             </dl>
           </div>
 
-          {/* Activity feed */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6">
-            <h2 className="text-sm font-semibold text-gray-900">
-              Recent Activity
-            </h2>
-            <ul className="mt-4 space-y-3">
-              {vote.activity.map((item, i) => (
-                <li key={i} className="flex gap-3 text-sm">
-                  <span className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-indigo-400" />
-                  <div>
-                    <p className="text-gray-700">{item.text}</p>
-                    <p className="text-xs text-gray-400">{item.time}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Share link (for link-based polls) */}
+          {poll.voter_access === "link" && poll.status === "active" && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6">
+              <h2 className="text-sm font-semibold text-slate-900">Share</h2>
+              <p className="mt-2 text-xs text-slate-500">Anyone with this link can vote.</p>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/vote/${poll.id}`;
+                  navigator.clipboard.writeText(url);
+                }}
+                className="mt-3 w-full rounded-lg border border-violet-300 px-3 py-2 text-xs font-medium text-violet-600 hover:bg-violet-50"
+              >
+                Copy voting link
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-}) {
+function StatCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
-      <p className="mt-1 text-xs text-gray-400">{sub}</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <p className="text-sm font-medium text-slate-500">{label}</p>
+      <p className="mt-1 text-3xl font-bold text-slate-900">{value}</p>
+      <p className="mt-1 text-xs text-slate-400">{sub}</p>
     </div>
   );
 }
@@ -543,14 +476,11 @@ function StatCard({
 function StatusBadge({ status }: { status: Status }) {
   const styles = {
     active: "bg-green-50 text-green-700 ring-green-600/20",
-    ended: "bg-gray-50 text-gray-600 ring-gray-500/10",
+    ended: "bg-slate-50 text-slate-600 ring-slate-500/10",
     draft: "bg-yellow-50 text-yellow-700 ring-yellow-600/20",
   };
-
   return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${styles[status]}`}
-    >
+    <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${styles[status]}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
