@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { getPoll, updatePoll, addParticipant, listParticipants, type Poll, type Participant } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 
 type Status = "active" | "ended" | "draft";
 
@@ -147,6 +148,28 @@ export default function VoteDetailPage() {
     e.target.value = "";
   }
 
+  async function handleExportPdf() {
+    if (!poll) return;
+    const token = getToken();
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+    const url = `${apiBase}/polls/${poll.id}/votes/results/pdf`;
+    try {
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = `results-${poll.title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
+    } catch {
+      setError("Failed to export PDF. Please try again.");
+    }
+  }
+
   async function handleEndVote() {
     if (!poll) return;
     setEnding(true);
@@ -179,7 +202,7 @@ export default function VoteDetailPage() {
         <h1 className="text-2xl font-bold text-slate-900">{error || "Vote not found"}</h1>
         <Link
           href="/dashboard/votes"
-          className="mt-6 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+          className="mt-6 rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900"
         >
           Back to My Votes
         </Link>
@@ -219,6 +242,26 @@ export default function VoteDetailPage() {
                 </svg>
                 Participants
               </Link>
+            )}
+            <Link
+              href={`/dashboard/votes/${poll.id}/analytics`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+              </svg>
+              Analytics
+            </Link>
+            {(poll.status === "ended" || poll.votedCount > 0) && (
+              <button
+                onClick={handleExportPdf}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Export PDF
+              </button>
             )}
             {poll.status === "active" && (
               <button
@@ -268,7 +311,7 @@ export default function VoteDetailPage() {
             </div>
             <Link
               href={`/dashboard/votes/${poll.id}/participants`}
-              className="text-sm font-medium text-violet-600 hover:text-violet-500"
+              className="text-sm font-medium text-blue-800 hover:text-blue-500"
             >
               Manage all
             </Link>
@@ -280,19 +323,19 @@ export default function VoteDetailPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Full name"
-              className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none sm:w-1/3"
+              className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:w-1/3"
             />
             <input
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               placeholder="Email address"
-              className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none sm:flex-1"
+              className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:flex-1"
             />
             <button
               type="submit"
               disabled={adding || !newName.trim() || !newEmail.trim()}
-              className="shrink-0 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+              className="shrink-0 rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:opacity-60"
             >
               {adding ? "Adding…" : "Add"}
             </button>
@@ -327,14 +370,14 @@ export default function VoteDetailPage() {
                 value={bulkText}
                 onChange={(e) => setBulkText(e.target.value)}
                 placeholder={"Name, email@example.com\nJane Smith, jane@example.com\njohn@example.com"}
-                className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-mono shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-mono shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
               <p className="text-xs text-slate-400">One participant per line. Format: Name, email — or just an email.</p>
               <button
                 type="button"
                 onClick={handleBulkAdd}
                 disabled={bulkAdding || !bulkText.trim()}
-                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+                className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 disabled:opacity-60"
               >
                 {bulkAdding ? "Adding…" : `Add ${parseLines(bulkText).length || ""} Participants`}
               </button>
@@ -382,7 +425,7 @@ export default function VoteDetailPage() {
                   const pct = totalCast > 0 ? Math.round((option.vote_count / totalCast) * 100) : 0;
                   const isLeading = option.vote_count === leadingVotes && leadingVotes > 0;
                   return (
-                    <div key={option.id} className={`rounded-lg p-3 ${isLeading ? "bg-violet-50 border border-violet-100" : "bg-slate-50"}`}>
+                    <div key={option.id} className={`rounded-lg p-3 ${isLeading ? "bg-blue-50 border border-blue-100" : "bg-slate-50"}`}>
                       <div className="flex items-center gap-3">
                         {option.image_url && (
                           <img src={option.image_url} alt={option.label} className="h-10 w-10 rounded-full object-cover shrink-0 border-2 border-white shadow-sm" />
@@ -390,19 +433,19 @@ export default function VoteDetailPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 flex-wrap text-sm">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-semibold ${isLeading ? "text-violet-700" : "text-slate-800"}`}>{option.label}</span>
+                              <span className={`font-semibold ${isLeading ? "text-blue-900" : "text-slate-800"}`}>{option.label}</span>
                               {option.candidate_position && <span className="text-xs text-slate-400">{option.candidate_position}</span>}
                               {option.party && (
-                                <span className={`text-xs rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${isLeading ? "bg-violet-100 text-violet-700 ring-violet-600/20" : "bg-slate-100 text-slate-500 ring-slate-400/20"}`}>
+                                <span className={`text-xs rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${isLeading ? "bg-blue-100 text-blue-900 ring-blue-800/20" : "bg-slate-100 text-slate-500 ring-slate-400/20"}`}>
                                   {option.party}
                                 </span>
                               )}
-                              {isLeading && <span className="text-xs font-semibold text-violet-500">{poll.status === "ended" ? "Winner" : "Leading"}</span>}
+                              {isLeading && <span className="text-xs font-semibold text-blue-500">{poll.status === "ended" ? "Winner" : "Leading"}</span>}
                             </div>
                             <span className="shrink-0 text-xs text-slate-500">{option.vote_count} votes ({pct}%)</span>
                           </div>
                           <div className="mt-2 h-2 w-full rounded-full bg-white/80 border border-slate-100">
-                            <div className={`h-2 rounded-full transition-all ${isLeading ? "bg-violet-600" : "bg-slate-300"}`} style={{ width: `${pct}%` }} />
+                            <div className={`h-2 rounded-full transition-all ${isLeading ? "bg-blue-800" : "bg-slate-300"}`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
                       </div>
@@ -438,6 +481,17 @@ export default function VoteDetailPage() {
                 <dt className="text-slate-500">End</dt>
                 <dd className="font-medium text-slate-700">{formatDate(poll.closes_at)}</dd>
               </div>
+              {poll.quorum != null && (
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Quorum</dt>
+                  <dd className="font-medium text-slate-700">
+                    {poll.votedCount} / {poll.quorum} votes
+                    {poll.votedCount >= poll.quorum && (
+                      <span className="ml-1.5 text-xs font-semibold text-[#10B981]">Reached</span>
+                    )}
+                  </dd>
+                </div>
+              )}
             </dl>
           </div>
 
@@ -451,7 +505,7 @@ export default function VoteDetailPage() {
                   const url = `${window.location.origin}/vote/${poll.id}`;
                   navigator.clipboard.writeText(url);
                 }}
-                className="mt-3 w-full rounded-lg border border-violet-300 px-3 py-2 text-xs font-medium text-violet-600 hover:bg-violet-50"
+                className="mt-3 w-full rounded-lg border border-blue-300 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-50"
               >
                 Copy voting link
               </button>

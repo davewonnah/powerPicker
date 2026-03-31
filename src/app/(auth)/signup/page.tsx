@@ -35,14 +35,14 @@ export default function SignupPage() {
 
   return (
     <div className="w-full max-w-md">
-      <a href="/" className="mb-8 block text-2xl font-bold text-violet-600 lg:hidden">
+      <a href="/" className="mb-8 block text-2xl font-bold text-blue-800 lg:hidden">
         PowerPicker
       </a>
 
       <h1 className="text-3xl font-bold text-slate-900">Create your account</h1>
       <p className="mt-2 text-sm text-slate-600">
         Already have an account?{" "}
-        <a href="/login" className="font-medium text-violet-600 hover:text-violet-500">
+        <a href="/login" className="font-medium text-blue-800 hover:text-blue-500">
           Log in
         </a>
       </p>
@@ -64,7 +64,7 @@ export default function SignupPage() {
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="johndoe"
           />
         </div>
@@ -79,7 +79,7 @@ export default function SignupPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="you@example.com"
           />
         </div>
@@ -94,7 +94,7 @@ export default function SignupPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="Create a password"
           />
         </div>
@@ -109,7 +109,7 @@ export default function SignupPage() {
             required
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="Confirm your password"
           />
         </div>
@@ -119,15 +119,15 @@ export default function SignupPage() {
             id="terms"
             type="checkbox"
             required
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-800 focus:ring-blue-500"
           />
           <label htmlFor="terms" className="text-sm text-slate-600">
             I agree to the{" "}
-            <a href="/terms" className="font-medium text-violet-600 hover:text-violet-500">
+            <a href="/terms" className="font-medium text-blue-800 hover:text-blue-500">
               Terms of Service
             </a>{" "}
             and{" "}
-            <a href="/privacy" className="font-medium text-violet-600 hover:text-violet-500">
+            <a href="/privacy" className="font-medium text-blue-800 hover:text-blue-500">
               Privacy Policy
             </a>
           </label>
@@ -136,7 +136,7 @@ export default function SignupPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:outline-none disabled:opacity-60"
+          className="w-full rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:opacity-60"
         >
           {loading ? "Creating account…" : "Create account"}
         </button>

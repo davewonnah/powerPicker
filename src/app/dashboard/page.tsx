@@ -54,7 +54,7 @@ export default function DashboardPage() {
         </div>
         <Link
           href="/dashboard/create"
-          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-900"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -78,7 +78,7 @@ export default function DashboardPage() {
           {statCards.map((stat, i) => (
             <div key={stat.label} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className={`absolute right-0 top-0 h-full w-1.5 rounded-r-xl ${
-                i === 0 ? "bg-violet-500" : i === 1 ? "bg-emerald-500" : i === 2 ? "bg-sky-500" : "bg-amber-500"
+                i === 0 ? "bg-blue-500" : i === 1 ? "bg-emerald-500" : i === 2 ? "bg-sky-500" : "bg-amber-500"
               }`} />
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{stat.label}</p>
               <p className="mt-2 text-3xl font-bold text-slate-900">{stat.value}</p>
@@ -91,7 +91,7 @@ export default function DashboardPage() {
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-900">Recent Votes</h2>
-          <Link href="/dashboard/votes" className="text-sm font-medium text-violet-600 hover:text-violet-500">
+          <Link href="/dashboard/votes" className="text-sm font-medium text-blue-800 hover:text-blue-500">
             View all
           </Link>
         </div>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
         ) : polls.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-slate-500">
             No polls yet.{" "}
-            <Link href="/dashboard/create" className="text-violet-600 hover:underline">
+            <Link href="/dashboard/create" className="text-blue-800 hover:underline">
               Create your first vote
             </Link>
             .
@@ -130,7 +130,7 @@ export default function DashboardPage() {
                   {polls.map((poll) => (
                     <tr key={poll.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 font-medium text-slate-900">
-                        <Link href={`/dashboard/votes/${poll.id}`} className="hover:text-violet-600">
+                        <Link href={`/dashboard/votes/${poll.id}`} className="hover:text-blue-800">
                           {poll.title}
                         </Link>
                       </td>
@@ -142,7 +142,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-20 rounded-full bg-slate-200">
                             <div
-                              className="h-2 rounded-full bg-violet-600"
+                              className="h-2 rounded-full bg-blue-800"
                               style={{
                                 width: poll.total_participants > 0
                                   ? `${Math.min(100, Math.round((poll.votes_cast / poll.total_participants) * 100))}%`

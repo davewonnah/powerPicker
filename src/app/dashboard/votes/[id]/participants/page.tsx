@@ -198,7 +198,7 @@ export default function ParticipantsPage() {
             </button>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -231,7 +231,7 @@ export default function ParticipantsPage() {
 
       {/* Add participant form */}
       {showAddForm && (
-        <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-5">
+        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-5">
           <h3 className="text-sm font-semibold text-slate-900">Add New Participant</h3>
           {addError && (
             <p className="mt-2 text-sm text-red-600">{addError}</p>
@@ -242,7 +242,7 @@ export default function ParticipantsPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Full name"
-              className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none sm:w-1/3"
+              className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:w-1/3"
             />
             <input
               type="email"
@@ -250,12 +250,12 @@ export default function ParticipantsPage() {
               onChange={(e) => setNewEmail(e.target.value)}
               placeholder="Email address"
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddParticipant(); }}}
-              className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none sm:flex-1"
+              className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:flex-1"
             />
             <div className="flex gap-2">
               <button
                 onClick={handleAddParticipant}
-                className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+                className="rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900"
               >
                 Add
               </button>
@@ -282,7 +282,7 @@ export default function ParticipantsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email, or code..."
-            className="block w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+            className="block w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
         </div>
 
@@ -308,9 +308,9 @@ export default function ParticipantsPage() {
 
       {/* Bulk actions */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3">
-          <span className="text-sm font-medium text-violet-700">{selectedIds.size} selected</span>
-          <div className="h-4 w-px bg-violet-200" />
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <span className="text-sm font-medium text-blue-900">{selectedIds.size} selected</span>
+          <div className="h-4 w-px bg-blue-200" />
           <button onClick={handleRemoveSelected} className="text-sm font-medium text-red-600 hover:text-red-500">
             Remove
           </button>
@@ -343,7 +343,7 @@ export default function ParticipantsPage() {
                         type="checkbox"
                         checked={selectedIds.size === filtered.length && filtered.length > 0}
                         onChange={toggleSelectAll}
-                        className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-800 focus:ring-blue-500"
                       />
                     </th>
                     <th className="px-4 py-3 font-medium">Name</th>
@@ -362,14 +362,14 @@ export default function ParticipantsPage() {
                           type="checkbox"
                           checked={selectedIds.has(p.id)}
                           onChange={() => toggleSelect(p.id)}
-                          className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                          className="h-4 w-4 rounded border-slate-300 text-blue-800 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
                       <td className="px-4 py-3 text-slate-500">{p.email}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <code className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold tracking-wider text-violet-700">
+                          <code className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold tracking-wider text-blue-900">
                             {p.code}
                           </code>
                           <button
@@ -448,7 +448,7 @@ export default function ParticipantsPage() {
                         type="checkbox"
                         checked={selectedIds.has(p.id)}
                         onChange={() => toggleSelect(p.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-800 focus:ring-blue-500"
                       />
                       <div>
                         <p className="font-medium text-slate-900">{p.name}</p>
@@ -460,7 +460,7 @@ export default function ParticipantsPage() {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <code className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold tracking-wider text-violet-700">
+                      <code className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold tracking-wider text-blue-900">
                         {p.code}
                       </code>
                       <button onClick={() => copyCode(p.id, p.code)} className="rounded p-1 text-slate-400" title="Copy code">

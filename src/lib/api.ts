@@ -56,6 +56,7 @@ export interface Poll {
   status: "draft" | "active" | "ended";
   starts_at: string | null;
   closes_at: string | null;
+  quorum: number | null;
   created_at: string;
   creator_id: number;
   options: PollOption[];
@@ -135,6 +136,7 @@ export interface CreatePollPayload {
   voterAccess: "link" | "email";
   startsAt?: string;
   closesAt?: string;
+  quorum?: number;
   options: (string | CandidateOption)[];
   voters?: { name: string; email: string; code: string }[];
 }
@@ -193,6 +195,24 @@ export const removeParticipant = (pollId: number, participantId: number) =>
     method: "DELETE",
   });
 
+/* ── Upload ─────────────────────────────────────────────────── */
+
+export const uploadImage = async (file: File): Promise<string> => {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(`${BASE}/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((body as { message?: string }).message ?? "Upload failed");
+  const imageUrl = (body as { url: string }).url;
+  // Build full URL pointing to the API server
+  return `${BASE.replace("/api", "")}${imageUrl}`;
+};
+
 /* ── Public voting ──────────────────────────────────────────── */
 
 export const castPublicVote = (pollId: number, code: string, optionIds: number[]) =>
@@ -200,3 +220,36 @@ export const castPublicVote = (pollId: number, code: string, optionIds: number[]
     method: "POST",
     body: JSON.stringify({ code, optionIds }),
   });
+
+export interface AnalyticsTimelinePoint {
+  hour: string;
+  votes: number;
+  cumulative: number;
+  turnoutPct: number;
+}
+
+export interface AnalyticsOption {
+  id: number;
+  label: string;
+  position: number;
+  vote_count: number;
+  percentage: number;
+}
+
+export interface PollAnalytics {
+  timeline: AnalyticsTimelinePoint[];
+  options: AnalyticsOption[];
+  totalVotes: number;
+  totalParticipants: number;
+  voted: number;
+  pending: number;
+  turnoutPct: number;
+}
+
+export const getPollAnalytics = (pollId: number) =>
+  apiFetch<PollAnalytics>(`/polls/${pollId}/votes/analytics`);
+
+export const verifyVote = (token: string) =>
+  apiFetch<{ verified: boolean; pollTitle?: string; pollStatus?: string; votedAt?: string; voterName?: string | null; message?: string }>(
+    `/verify/${encodeURIComponent(token)}`
+  );

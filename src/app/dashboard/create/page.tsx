@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createPoll } from "@/lib/api";
+import { createPoll, uploadImage } from "@/lib/api";
+import { TEMPLATES, TEMPLATE_CATEGORIES, type ElectionTemplate } from "@/lib/templates";
 
 type VoteType = "single" | "multiple" | "ranked";
 
@@ -54,11 +55,33 @@ export default function CreateVotePage() {
   const [voters, setVoters] = useState<Voter[]>([]);
   const [newVoterName, setNewVoterName] = useState("");
   const [newVoterEmail, setNewVoterEmail] = useState("");
+  const [quorum, setQuorum] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>("All");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [bulkEmails, setBulkEmails] = useState("");
   const [showBulkInput, setShowBulkInput] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  function applyTemplate(t: ElectionTemplate) {
+    setTitle(t.titlePlaceholder);
+    setDescription(t.descriptionPlaceholder);
+    setVoteType(t.voteType);
+    setVoterAccess(t.voterAccess);
+    setOptions(
+      t.options.map((o) => ({
+        id: crypto.randomUUID(),
+        label: o.label,
+        candidate_position: o.candidate_position ?? "",
+        party: o.party ?? "",
+        bio: "",
+        image_url: "",
+      }))
+    );
+    setExpandedOption(null);
+    setShowTemplates(false);
+  }
 
   function addVoter() {
     if (!newVoterName.trim() || !newVoterEmail.trim()) return;
@@ -131,6 +154,7 @@ export default function CreateVotePage() {
         voterAccess,
         startsAt: toISO(startDate),
         closesAt: toISO(endDate),
+        quorum: quorum ? parseInt(quorum) : undefined,
         options: options
           .filter((o) => o.label.trim())
           .map((o) => ({
@@ -150,12 +174,86 @@ export default function CreateVotePage() {
     }
   }
 
+  const filteredTemplates = activeCategory === "All"
+    ? TEMPLATES
+    : TEMPLATES.filter((t) => t.category === activeCategory);
+
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Create a Vote</h1>
-        <p className="mt-1 text-sm text-slate-500">Set up a new election or poll for your group.</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Create a Vote</h1>
+          <p className="mt-1 text-sm text-slate-500">Set up a new election or poll for your group.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowTemplates(!showTemplates)}
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#1E3A8A]/30 bg-[#1E3A8A]/5 px-4 py-2.5 text-sm font-medium text-[#1E3A8A] hover:bg-[#1E3A8A]/10"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
+          </svg>
+          {showTemplates ? "Hide Templates" : "Use a Template"}
+        </button>
       </div>
+
+      {/* Template picker */}
+      {showTemplates && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Election Templates</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Pick a template to pre-fill the form. You can edit anything afterwards.</p>
+          </div>
+
+          {/* Category filter */}
+          <div className="flex flex-wrap gap-2">
+            {["All", ...TEMPLATE_CATEGORIES].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  activeCategory === cat
+                    ? "bg-[#1E3A8A] text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Template grid */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {filteredTemplates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => applyTemplate(t)}
+                className="flex items-start gap-3 rounded-lg border border-slate-200 p-4 text-left transition-all hover:border-[#1E3A8A]/40 hover:bg-[#1E3A8A]/5 hover:shadow-sm"
+              >
+                <span className="text-2xl shrink-0 mt-0.5">{t.icon}</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">{t.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{t.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                      {t.voteType}
+                    </span>
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      t.voterAccess === "email"
+                        ? "bg-blue-50 text-[#1E3A8A]"
+                        : "bg-green-50 text-green-700"
+                    }`}>
+                      {t.voterAccess === "email" ? "invite only" : "open link"}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
@@ -174,7 +272,7 @@ export default function CreateVotePage() {
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="e.g. Student Council President 2026"
             />
           </div>
@@ -188,7 +286,7 @@ export default function CreateVotePage() {
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="Provide context or instructions for voters..."
             />
           </div>
@@ -205,11 +303,11 @@ export default function CreateVotePage() {
                 onClick={() => setVoteType(type.value)}
                 className={`rounded-lg border p-4 text-left transition-colors ${
                   voteType === type.value
-                    ? "border-violet-600 bg-violet-50 ring-2 ring-violet-600"
+                    ? "border-blue-800 bg-blue-50 ring-2 ring-blue-800"
                     : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                 }`}
               >
-                <p className={`text-sm font-semibold ${voteType === type.value ? "text-violet-700" : "text-slate-900"}`}>
+                <p className={`text-sm font-semibold ${voteType === type.value ? "text-blue-900" : "text-slate-900"}`}>
                   {type.label}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">{type.description}</p>
@@ -240,14 +338,14 @@ export default function CreateVotePage() {
                       required
                       value={option.label}
                       onChange={(e) => updateOption(option.id, "label", e.target.value)}
-                      className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                      className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       placeholder={`Candidate ${index + 1} name`}
                     />
                     <button
                       type="button"
                       onClick={() => setExpandedOption(expanded ? null : option.id)}
                       className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                        expanded ? "bg-violet-100 text-violet-700" : hasDetails ? "bg-violet-50 text-violet-600" : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-100"
+                        expanded ? "bg-blue-100 text-blue-900" : hasDetails ? "bg-blue-50 text-blue-800" : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-100"
                       }`}
                     >
                       {expanded ? "Done" : "Details"}
@@ -275,7 +373,7 @@ export default function CreateVotePage() {
                             value={option.candidate_position}
                             onChange={(e) => updateOption(option.id, "candidate_position", e.target.value)}
                             placeholder="e.g. President, Secretary"
-                            className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                            className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
                         <div>
@@ -285,19 +383,52 @@ export default function CreateVotePage() {
                             value={option.party}
                             onChange={(e) => updateOption(option.id, "party", e.target.value)}
                             placeholder="e.g. Independent, Team A"
-                            className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                            className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Photo URL</label>
-                        <input
-                          type="url"
-                          value={option.image_url}
-                          onChange={(e) => updateOption(option.id, "image_url", e.target.value)}
-                          placeholder="https://example.com/photo.jpg"
-                          className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
-                        />
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Photo</label>
+                        <div className="flex items-center gap-3">
+                          {option.image_url && (
+                            <img src={option.image_url} alt="" className="h-12 w-12 rounded-full object-cover border border-slate-200 shrink-0" />
+                          )}
+                          <label className="flex-1 cursor-pointer">
+                            <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm text-slate-500 hover:border-blue-400 hover:text-blue-800 transition-colors">
+                              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                              </svg>
+                              <span>{option.image_url ? "Change photo" : "Upload photo"}</span>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="sr-only"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  const url = await uploadImage(file);
+                                  updateOption(option.id, "image_url", url);
+                                } catch {
+                                  // silently ignore upload errors in the UI
+                                }
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          {option.image_url && (
+                            <button
+                              type="button"
+                              onClick={() => updateOption(option.id, "image_url", "")}
+                              className="shrink-0 rounded p-1 text-slate-400 hover:text-red-500"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Campaign Message</label>
@@ -306,7 +437,7 @@ export default function CreateVotePage() {
                           value={option.bio}
                           onChange={(e) => updateOption(option.id, "bio", e.target.value)}
                           placeholder="Short campaign statement or bio..."
-                          className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                          className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -315,7 +446,7 @@ export default function CreateVotePage() {
               );
             })}
           </div>
-          <button type="button" onClick={addOption} className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-600 hover:text-violet-500">
+          <button type="button" onClick={addOption} className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-800 hover:text-blue-500">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
@@ -336,7 +467,7 @@ export default function CreateVotePage() {
                 type="datetime-local"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
             </div>
             <div>
@@ -348,8 +479,23 @@ export default function CreateVotePage() {
                 type="datetime-local"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
+            </div>
+            <div>
+              <label htmlFor="quorum" className="block text-sm font-medium text-slate-700">
+                Quorum <span className="text-slate-400">(optional)</span>
+              </label>
+              <input
+                id="quorum"
+                type="number"
+                min={1}
+                value={quorum}
+                onChange={(e) => setQuorum(e.target.value)}
+                placeholder="e.g. 50"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-slate-400">Auto-close the poll once this many votes are cast.</p>
             </div>
           </div>
         </section>
@@ -368,11 +514,11 @@ export default function CreateVotePage() {
                 onClick={() => setVoterAccess(opt.value)}
                 className={`rounded-lg border p-4 text-left transition-colors ${
                   voterAccess === opt.value
-                    ? "border-violet-600 bg-violet-50 ring-2 ring-violet-600"
+                    ? "border-blue-800 bg-blue-50 ring-2 ring-blue-800"
                     : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                 }`}
               >
-                <p className={`text-sm font-semibold ${voterAccess === opt.value ? "text-violet-700" : "text-slate-900"}`}>
+                <p className={`text-sm font-semibold ${voterAccess === opt.value ? "text-blue-900" : "text-slate-900"}`}>
                   {opt.label}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">{opt.desc}</p>
@@ -390,7 +536,7 @@ export default function CreateVotePage() {
                 <p className="mt-1 text-sm text-slate-500">Add voters and each will receive a unique voting code.</p>
               </div>
               {voters.length > 0 && (
-                <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-600">
+                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
                   {voters.length} voter{voters.length !== 1 && "s"}
                 </span>
               )}
@@ -402,7 +548,7 @@ export default function CreateVotePage() {
                 value={newVoterName}
                 onChange={(e) => setNewVoterName(e.target.value)}
                 placeholder="Name"
-                className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none sm:w-1/3"
+                className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:w-1/3"
               />
               <input
                 type="email"
@@ -410,12 +556,12 @@ export default function CreateVotePage() {
                 onChange={(e) => setNewVoterEmail(e.target.value)}
                 placeholder="Email address"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVoter(); }}}
-                className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none sm:flex-1"
+                className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:flex-1"
               />
               <button
                 type="button"
                 onClick={addVoter}
-                className="shrink-0 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+                className="shrink-0 rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900"
               >
                 Add Voter
               </button>
@@ -425,7 +571,7 @@ export default function CreateVotePage() {
               <button
                 type="button"
                 onClick={() => setShowBulkInput(!showBulkInput)}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-600 hover:text-violet-500"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-800 hover:text-blue-500"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -440,13 +586,13 @@ export default function CreateVotePage() {
                     value={bulkEmails}
                     onChange={(e) => setBulkEmails(e.target.value)}
                     placeholder={"Name, email@example.com\nJane Smith, jane@example.com\njohn@example.com"}
-                    className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500 focus:outline-none font-mono"
+                    className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
                   />
                   <p className="text-xs text-slate-400">One voter per line. Format: Name, email — or just an email address.</p>
                   <button
                     type="button"
                     onClick={addBulkVoters}
-                    className="rounded-lg border border-violet-600 px-4 py-2 text-sm font-medium text-violet-600 hover:bg-violet-50"
+                    className="rounded-lg border border-blue-800 px-4 py-2 text-sm font-medium text-blue-800 hover:bg-blue-50"
                   >
                     Add All
                   </button>
@@ -471,7 +617,7 @@ export default function CreateVotePage() {
                       </div>
                       <p className="hidden text-sm text-slate-600 sm:block">{voter.email}</p>
                       <div className="flex items-center gap-1.5">
-                        <code className="w-28 rounded-md bg-slate-100 px-2.5 py-1.5 text-center text-sm font-semibold tracking-wider text-violet-700">
+                        <code className="w-28 rounded-md bg-slate-100 px-2.5 py-1.5 text-center text-sm font-semibold tracking-wider text-blue-900">
                           {voter.code}
                         </code>
                         <button
@@ -520,7 +666,7 @@ export default function CreateVotePage() {
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-600 hover:text-violet-500"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-800 hover:text-blue-500"
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -545,7 +691,7 @@ export default function CreateVotePage() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
+            className="rounded-lg bg-blue-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-900 disabled:opacity-60"
           >
             {submitting ? "Creating…" : "Create Vote"}
           </button>
