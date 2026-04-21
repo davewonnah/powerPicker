@@ -25,14 +25,14 @@
   "screenshots": [],
   "shortcuts": [
     {
-      "name": "Create Vote",
+      "name": "Create Poll",
       "url": "/dashboard/create",
-      "description": "Start a new election"
+      "description": "Start a new poll"
     },
     {
-      "name": "My Votes",
+      "name": "My Polls",
       "url": "/dashboard/votes",
-      "description": "View your elections"
+      "description": "View your polls"
     }
   ]
 }

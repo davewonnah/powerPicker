@@ -1,7 +1,8 @@
 export interface StoredUser {
-  id: number;
+  id: string;
   username: string;
   email: string;
+  role?: "user" | "admin" | "super_admin";
 }
 
 export function getToken(): string | null {
@@ -21,6 +22,10 @@ export function getStoredUser(): StoredUser | null {
 
 export function saveAuth(token: string, user: StoredUser) {
   localStorage.setItem("pp_token", token);
+  localStorage.setItem("pp_user", JSON.stringify(user));
+}
+
+export function setStoredUser(user: StoredUser) {
   localStorage.setItem("pp_user", JSON.stringify(user));
 }
 

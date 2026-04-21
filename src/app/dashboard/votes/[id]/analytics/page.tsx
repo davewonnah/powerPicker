@@ -47,7 +47,7 @@ export default function AnalyticsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([getPoll(Number(id)), getPollAnalytics(Number(id))])
+    Promise.all([getPoll(id), getPollAnalytics(id)])
       .then(([{ poll }, data]) => {
         setPoll(poll);
         setAnalytics(data);

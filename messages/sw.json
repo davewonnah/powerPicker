@@ -46,7 +46,14 @@
     "yourChoice": "Chaguo lako",
     "confirmationNum": "Nambari ya Uthibitisho #",
     "resultsAvailable": "Matokeo yanapatikana",
-    "verifyMyVote": "Thibitisha kura yangu"
+    "verifyMyVote": "Thibitisha kura yangu",
+    "otp": {
+      "title": "Angalia Barua Pepe Yako",
+      "desc": "Tumetuma nambari ya uthibitisho ya tarakimu 6 kwa {email}. Iingize hapa chini ili kuendelea.",
+      "verify": "Thibitisha na Endelea",
+      "back": "Rudi — tumia nambari nyingine",
+      "expiry": "Nambari inakwisha muda baada ya dakika 15. Angalia folda ya spam ikiwa huioni."
+    }
   },
   "verify": {
     "title": "Thibitisha Kura Yako",

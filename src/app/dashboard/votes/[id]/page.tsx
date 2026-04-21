@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { getPoll, updatePoll, addParticipant, listParticipants, type Poll, type Participant } from "@/lib/api";
+import { getPoll, updatePoll, addParticipant, listParticipants, listObservers, addObserver as addObserverApi, removeObserver as removeObserverApi, getPollInsights, regeneratePollInsights, getFraudAlerts, type Poll, type Participant, type Observer, type FraudAlert } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { io, Socket } from "socket.io-client";
 
 type Status = "active" | "ended" | "draft";
 
@@ -56,16 +57,52 @@ export default function VoteDetailPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [bulkAdding, setBulkAdding] = useState(false);
 
+  // Observer state
+  const [observers, setObservers] = useState<Observer[]>([]);
+  const [newObserverEmail, setNewObserverEmail] = useState("");
+  const [newObserverName, setNewObserverName] = useState("");
+  const [addingObserver, setAddingObserver] = useState(false);
+  const [observerError, setObserverError] = useState("");
+  const [copiedObserverId, setCopiedObserverId] = useState<string | null>(null);
+
+  // AI insights state
+  const [insights, setInsights] = useState<{ text: string; generatedAt: string } | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState("");
+
+  // Fraud alerts state
+  const [fraudAlerts, setFraudAlerts] = useState<FraudAlert[]>([]);
+
+  // WebSocket
+  const socketRef = useRef<Socket | null>(null);
+
   useEffect(() => {
-    getPoll(Number(id))
+    const pollId = id;
+    getPoll(pollId)
       .then(({ poll }) => {
         setPoll(poll);
         if (poll.voter_access === "email") {
-          listParticipants(Number(id)).then(({ participants }) => setParticipants(participants));
+          listParticipants(pollId).then(({ participants }) => setParticipants(participants));
         }
+        listObservers(pollId).then(({ observers }) => setObservers(observers)).catch(() => {});
+        getFraudAlerts(pollId).then(({ alerts }) => setFraudAlerts(alerts)).catch(() => {});
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  }, [id]);
+
+  // WebSocket for live result updates
+  useEffect(() => {
+    const pollId = id;
+    if (!pollId) return;
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api").replace("/api", "");
+    const socket = io(apiBase, { transports: ["websocket", "polling"] });
+    socketRef.current = socket;
+    socket.emit("join-poll", pollId);
+    socket.on("poll-update", (update: { totalVotes: number; options: Poll["options"] }) => {
+      setPoll((prev) => prev ? { ...prev, options: update.options } : prev);
+    });
+    return () => { socket.disconnect(); };
   }, [id]);
 
   function generateCode(): string {
@@ -167,6 +204,51 @@ export default function VoteDetailPage() {
       URL.revokeObjectURL(objUrl);
     } catch {
       setError("Failed to export PDF. Please try again.");
+    }
+  }
+
+  async function handleAddObserver(e: React.FormEvent) {
+    e.preventDefault();
+    if (!poll || !newObserverEmail.trim()) return;
+    setObserverError("");
+    setAddingObserver(true);
+    try {
+      const { observer } = await addObserverApi(poll.id, { email: newObserverEmail.trim(), name: newObserverName.trim() || undefined });
+      setObservers((prev) => [...prev, observer]);
+      setNewObserverEmail("");
+      setNewObserverName("");
+    } catch (err) {
+      setObserverError(err instanceof Error ? err.message : "Failed to add observer");
+    } finally {
+      setAddingObserver(false);
+    }
+  }
+
+  async function handleRemoveObserver(observerId: string) {
+    if (!poll) return;
+    await removeObserverApi(poll.id, observerId).catch(() => {});
+    setObservers((prev) => prev.filter((o) => o.id !== observerId));
+  }
+
+  function copyObserverLink(observer: Observer) {
+    navigator.clipboard.writeText(observer.observeUrl);
+    setCopiedObserverId(observer.id);
+    setTimeout(() => setCopiedObserverId(null), 2000);
+  }
+
+  async function handleGenerateInsights() {
+    if (!poll) return;
+    setInsightsLoading(true);
+    setInsightsError("");
+    try {
+      const res = insights
+        ? await regeneratePollInsights(poll.id)
+        : await getPollInsights(poll.id);
+      setInsights({ text: res.insights, generatedAt: res.generatedAt });
+    } catch (err) {
+      setInsightsError(err instanceof Error ? err.message : "Failed to generate insights");
+    } finally {
+      setInsightsLoading(false);
     }
   }
 
@@ -406,6 +488,74 @@ export default function VoteDetailPage() {
         </div>
       )}
 
+      {/* Observers */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Observers</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Add read-only auditors who can watch results live without logging in.</p>
+        </div>
+
+        <form onSubmit={handleAddObserver} className="flex flex-col gap-3 sm:flex-row">
+          <input
+            type="text"
+            value={newObserverName}
+            onChange={(e) => setNewObserverName(e.target.value)}
+            placeholder="Name (optional)"
+            className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:w-1/3"
+          />
+          <input
+            type="email"
+            value={newObserverEmail}
+            onChange={(e) => setNewObserverEmail(e.target.value)}
+            placeholder="Email address"
+            required
+            className="block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:flex-1"
+          />
+          <button
+            type="submit"
+            disabled={addingObserver || !newObserverEmail.trim()}
+            className="shrink-0 rounded-lg bg-[#1E3A8A] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:opacity-60"
+          >
+            {addingObserver ? "Adding…" : "Add Observer"}
+          </button>
+        </form>
+        {observerError && <p className="text-sm text-red-600">{observerError}</p>}
+
+        {observers.length > 0 && (
+          <div className="divide-y divide-slate-100 rounded-lg border border-slate-100">
+            {observers.map((observer) => (
+              <div key={observer.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <div>
+                  <p className="font-medium text-slate-900">{observer.name || observer.email}</p>
+                  {observer.name && <p className="text-xs text-slate-400">{observer.email}</p>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => copyObserverLink(observer)}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    {copiedObserverId === observer.id ? "Copied!" : "Copy link"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveObserver(observer.id)}
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {observers.length === 0 && (
+          <p className="text-sm text-slate-400">No observers yet. Add one above — they'll receive an email with a private link.</p>
+        )}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Results */}
         <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-6">
@@ -442,7 +592,7 @@ export default function VoteDetailPage() {
                               )}
                               {isLeading && <span className="text-xs font-semibold text-blue-500">{poll.status === "ended" ? "Winner" : "Leading"}</span>}
                             </div>
-                            <span className="shrink-0 text-xs text-slate-500">{option.vote_count} votes ({pct}%)</span>
+                            <span className="shrink-0 text-xs text-slate-500">{option.vote_count % 1 !== 0 ? option.vote_count.toFixed(2) : option.vote_count} votes ({pct}%)</span>
                           </div>
                           <div className="mt-2 h-2 w-full rounded-full bg-white/80 border border-slate-100">
                             <div className={`h-2 rounded-full transition-all ${isLeading ? "bg-blue-800" : "bg-slate-300"}`} style={{ width: `${pct}%` }} />
@@ -513,6 +663,69 @@ export default function VoteDetailPage() {
           )}
         </div>
       </div>
+      {/* AI Insights */}
+      {poll.votedCount > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">AI Insights</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Plain-language summary of the election results generated by AI.</p>
+            </div>
+            <button
+              onClick={handleGenerateInsights}
+              disabled={insightsLoading}
+              className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 disabled:opacity-60"
+            >
+              {insightsLoading ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Analysing…
+                </>
+              ) : insights ? "Regenerate" : "Generate Summary"}
+            </button>
+          </div>
+          {insightsError && <p className="text-sm text-red-600">{insightsError}</p>}
+          {insights && (
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{insights.text}</p>
+              <p className="mt-3 text-xs text-slate-400">Generated {new Date(insights.generatedAt).toLocaleString()}</p>
+            </div>
+          )}
+          {!insights && !insightsLoading && !insightsError && (
+            <p className="text-sm text-slate-400">Click "Generate Summary" to get an AI-powered analysis of the results.</p>
+          )}
+        </div>
+      )}
+
+      {/* Fraud Alerts */}
+      {fraudAlerts.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+            <h2 className="text-base font-semibold text-amber-900">Security Alerts ({fraudAlerts.length})</h2>
+          </div>
+          <div className="space-y-2">
+            {fraudAlerts.map((alert) => (
+              <div key={alert.id} className={`rounded-lg border p-3 ${alert.severity === "critical" ? "bg-red-50 border-red-200" : "bg-white border-amber-200"}`}>
+                <div className="flex items-start gap-2">
+                  <span className={`mt-0.5 inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${alert.severity === "critical" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                    {alert.severity}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{alert.message}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">{new Date(alert.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

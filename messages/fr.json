@@ -46,7 +46,14 @@
     "yourChoice": "Votre choix",
     "confirmationNum": "Confirmation #",
     "resultsAvailable": "Résultats disponibles",
-    "verifyMyVote": "Vérifier mon vote"
+    "verifyMyVote": "Vérifier mon vote",
+    "otp": {
+      "title": "Vérifiez Votre Email",
+      "desc": "Nous avons envoyé un code de vérification à 6 chiffres à {email}. Entrez-le ci-dessous pour continuer.",
+      "verify": "Vérifier et Continuer",
+      "back": "Retour — utiliser un autre code",
+      "expiry": "Le code expire dans 15 minutes. Vérifiez vos spams si vous ne le voyez pas."
+    }
   },
   "verify": {
     "title": "Vérifier Votre Vote",

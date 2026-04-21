@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { getPoll, castPublicVote, type Poll } from "@/lib/api";
+import { getPoll, castPublicVote, requestOtp, type Poll } from "@/lib/api";
 import { useTranslations } from "@/hooks/useTranslations";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
@@ -38,7 +38,7 @@ function useCountdown(closesAt: string | null) {
   return timeLeft;
 }
 
-type Step = "code" | "ballot" | "confirmed";
+type Step = "code" | "otp" | "ballot" | "confirmed";
 
 export default function VotePage() {
   const { id } = useParams<{ id: string }>();
@@ -49,20 +49,29 @@ export default function VotePage() {
   const [step, setStep] = useState<Step>("code");
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
-  const [selectedMultiple, setSelectedMultiple] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<string | null>(null);
+  const [selectedMultiple, setSelectedMultiple] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [voterName, setVoterName] = useState("");
   const [confirmationId, setConfirmationId] = useState("");
   const [selectionLabel, setSelectionLabel] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [maskedEmail, setMaskedEmail] = useState("");
 
   const countdown = useCountdown(poll?.closes_at ?? null);
   const { t, locale, setLocale, locales } = useTranslations();
 
   useEffect(() => {
-    getPoll(Number(id))
-      .then(({ poll }) => setPoll(poll))
+    getPoll(id)
+      .then(({ poll }) => {
+        setPoll(poll);
+        if (poll.voter_access === "link") {
+          setStep("ballot");
+        }
+      })
       .catch((err) => setFetchError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
@@ -146,7 +155,7 @@ export default function VotePage() {
       return;
     }
 
-    // For link-based polls, skip code validation and go straight to ballot
+    // For link-based polls, skip straight to ballot
     if (poll.voter_access === "link") {
       setVoterName("Voter");
       setCodeError("");
@@ -154,13 +163,31 @@ export default function VotePage() {
       return;
     }
 
-    // For email-based polls, the code will be validated on submission
-    setVoterName("");
+    // For email-based polls, request OTP first
+    setOtpLoading(true);
     setCodeError("");
+    try {
+      const result = await requestOtp(poll.id, cleaned);
+      setMaskedEmail(result.maskedEmail);
+      setStep("otp");
+    } catch (err) {
+      setCodeError(err instanceof Error ? err.message : "Could not send verification code.");
+    } finally {
+      setOtpLoading(false);
+    }
+  }
+
+  function handleOtpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (otp.trim().length !== 6) {
+      setOtpError("Please enter the 6-digit code.");
+      return;
+    }
+    setOtpError("");
     setStep("ballot");
   }
 
-  function toggleMultiple(optionId: number) {
+  function toggleMultiple(optionId: string) {
     setSelectedMultiple((prev) => {
       const next = new Set(prev);
       if (next.has(optionId)) next.delete(optionId);
@@ -181,7 +208,7 @@ export default function VotePage() {
     setSubmitError("");
     setSubmitting(true);
     try {
-      const result = await castPublicVote(poll.id, code.trim().toUpperCase(), optionIds);
+      const result = await castPublicVote(poll.id, code.trim().toUpperCase() || undefined, optionIds, otp.trim() || undefined);
       setConfirmationId(result.confirmationId);
 
       // Build selection label for confirmation screen
@@ -278,15 +305,80 @@ export default function VotePage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full rounded-lg bg-blue-800 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-900"
+                  disabled={otpLoading}
+                  className="w-full rounded-lg bg-blue-800 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-900 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {t("vote.accessBallot")}
+                  {otpLoading ? (
+                    <span className="inline-flex items-center gap-2 justify-center">
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Sending code…
+                    </span>
+                  ) : t("vote.accessBallot")}
                 </button>
               </form>
 
               <p className="text-center text-xs text-slate-400">{t("vote.codeSingleUse")}</p>
             </>
           )}
+        </div>
+      )}
+
+      {/* Step: OTP verification */}
+      {step === "otp" && (
+        <div className="w-full max-w-md space-y-6">
+          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+            <p className="text-xs font-medium uppercase tracking-wider text-blue-800">PowerPicker</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{poll.title}</p>
+          </div>
+
+          <div className="text-center space-y-2">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-100">
+              <svg className="h-7 w-7 text-blue-800" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">{t("vote.otp.title")}</h1>
+            <p className="text-sm text-slate-500">
+              {t("vote.otp.desc", { email: maskedEmail })}
+            </p>
+          </div>
+
+          <form onSubmit={handleOtpSubmit} className="space-y-4">
+            <div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={otp}
+                onChange={(e) => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setOtpError(""); }}
+                placeholder="000000"
+                maxLength={6}
+                className={`block w-full rounded-lg border px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] shadow-sm focus:outline-none focus:ring-2 ${
+                  otpError
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                    : "border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                }`}
+              />
+              {otpError && <p className="mt-2 text-sm text-red-600">{otpError}</p>}
+            </div>
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-blue-800 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-900"
+            >
+              {t("vote.otp.verify")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep("code")}
+              className="w-full text-sm text-slate-500 hover:text-slate-700"
+            >
+              {t("vote.otp.back")}
+            </button>
+          </form>
+
+          <p className="text-center text-xs text-slate-400">{t("vote.otp.expiry")}</p>
         </div>
       )}
 

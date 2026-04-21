@@ -21,7 +21,76 @@ interface Voter {
   name: string;
   email: string;
   code: string;
+  weight: string;
 }
+
+const COMMON_COUNTRIES: { code: string; name: string }[] = [
+  { code: "AF", name: "Afghanistan" }, { code: "AL", name: "Albania" }, { code: "DZ", name: "Algeria" },
+  { code: "AD", name: "Andorra" }, { code: "AO", name: "Angola" }, { code: "AG", name: "Antigua and Barbuda" },
+  { code: "AR", name: "Argentina" }, { code: "AM", name: "Armenia" }, { code: "AU", name: "Australia" },
+  { code: "AT", name: "Austria" }, { code: "AZ", name: "Azerbaijan" }, { code: "BS", name: "Bahamas" },
+  { code: "BH", name: "Bahrain" }, { code: "BD", name: "Bangladesh" }, { code: "BB", name: "Barbados" },
+  { code: "BY", name: "Belarus" }, { code: "BE", name: "Belgium" }, { code: "BZ", name: "Belize" },
+  { code: "BJ", name: "Benin" }, { code: "BT", name: "Bhutan" }, { code: "BO", name: "Bolivia" },
+  { code: "BA", name: "Bosnia and Herzegovina" }, { code: "BW", name: "Botswana" }, { code: "BR", name: "Brazil" },
+  { code: "BN", name: "Brunei" }, { code: "BG", name: "Bulgaria" }, { code: "BF", name: "Burkina Faso" },
+  { code: "BI", name: "Burundi" }, { code: "CV", name: "Cabo Verde" }, { code: "KH", name: "Cambodia" },
+  { code: "CM", name: "Cameroon" }, { code: "CA", name: "Canada" }, { code: "CF", name: "Central African Republic" },
+  { code: "TD", name: "Chad" }, { code: "CL", name: "Chile" }, { code: "CN", name: "China" },
+  { code: "CO", name: "Colombia" }, { code: "KM", name: "Comoros" }, { code: "CG", name: "Congo" },
+  { code: "CD", name: "Congo (DRC)" }, { code: "CR", name: "Costa Rica" }, { code: "CI", name: "Côte d'Ivoire" },
+  { code: "HR", name: "Croatia" }, { code: "CU", name: "Cuba" }, { code: "CY", name: "Cyprus" },
+  { code: "CZ", name: "Czech Republic" }, { code: "DK", name: "Denmark" }, { code: "DJ", name: "Djibouti" },
+  { code: "DM", name: "Dominica" }, { code: "DO", name: "Dominican Republic" }, { code: "EC", name: "Ecuador" },
+  { code: "EG", name: "Egypt" }, { code: "SV", name: "El Salvador" }, { code: "GQ", name: "Equatorial Guinea" },
+  { code: "ER", name: "Eritrea" }, { code: "EE", name: "Estonia" }, { code: "SZ", name: "Eswatini" },
+  { code: "ET", name: "Ethiopia" }, { code: "FJ", name: "Fiji" }, { code: "FI", name: "Finland" },
+  { code: "FR", name: "France" }, { code: "GA", name: "Gabon" }, { code: "GM", name: "Gambia" },
+  { code: "GE", name: "Georgia" }, { code: "DE", name: "Germany" }, { code: "GH", name: "Ghana" },
+  { code: "GR", name: "Greece" }, { code: "GD", name: "Grenada" }, { code: "GT", name: "Guatemala" },
+  { code: "GN", name: "Guinea" }, { code: "GW", name: "Guinea-Bissau" }, { code: "GY", name: "Guyana" },
+  { code: "HT", name: "Haiti" }, { code: "HN", name: "Honduras" }, { code: "HU", name: "Hungary" },
+  { code: "IS", name: "Iceland" }, { code: "IN", name: "India" }, { code: "ID", name: "Indonesia" },
+  { code: "IR", name: "Iran" }, { code: "IQ", name: "Iraq" }, { code: "IE", name: "Ireland" },
+  { code: "IL", name: "Israel" }, { code: "IT", name: "Italy" }, { code: "JM", name: "Jamaica" },
+  { code: "JP", name: "Japan" }, { code: "JO", name: "Jordan" }, { code: "KZ", name: "Kazakhstan" },
+  { code: "KE", name: "Kenya" }, { code: "KI", name: "Kiribati" }, { code: "KW", name: "Kuwait" },
+  { code: "KG", name: "Kyrgyzstan" }, { code: "LA", name: "Laos" }, { code: "LV", name: "Latvia" },
+  { code: "LB", name: "Lebanon" }, { code: "LS", name: "Lesotho" }, { code: "LR", name: "Liberia" },
+  { code: "LY", name: "Libya" }, { code: "LI", name: "Liechtenstein" }, { code: "LT", name: "Lithuania" },
+  { code: "LU", name: "Luxembourg" }, { code: "MG", name: "Madagascar" }, { code: "MW", name: "Malawi" },
+  { code: "MY", name: "Malaysia" }, { code: "MV", name: "Maldives" }, { code: "ML", name: "Mali" },
+  { code: "MT", name: "Malta" }, { code: "MH", name: "Marshall Islands" }, { code: "MR", name: "Mauritania" },
+  { code: "MU", name: "Mauritius" }, { code: "MX", name: "Mexico" }, { code: "FM", name: "Micronesia" },
+  { code: "MD", name: "Moldova" }, { code: "MC", name: "Monaco" }, { code: "MN", name: "Mongolia" },
+  { code: "ME", name: "Montenegro" }, { code: "MA", name: "Morocco" }, { code: "MZ", name: "Mozambique" },
+  { code: "MM", name: "Myanmar" }, { code: "NA", name: "Namibia" }, { code: "NR", name: "Nauru" },
+  { code: "NP", name: "Nepal" }, { code: "NL", name: "Netherlands" }, { code: "NZ", name: "New Zealand" },
+  { code: "NI", name: "Nicaragua" }, { code: "NE", name: "Niger" }, { code: "NG", name: "Nigeria" },
+  { code: "KP", name: "North Korea" }, { code: "MK", name: "North Macedonia" }, { code: "NO", name: "Norway" },
+  { code: "OM", name: "Oman" }, { code: "PK", name: "Pakistan" }, { code: "PW", name: "Palau" },
+  { code: "PA", name: "Panama" }, { code: "PG", name: "Papua New Guinea" }, { code: "PY", name: "Paraguay" },
+  { code: "PE", name: "Peru" }, { code: "PH", name: "Philippines" }, { code: "PL", name: "Poland" },
+  { code: "PT", name: "Portugal" }, { code: "QA", name: "Qatar" }, { code: "RO", name: "Romania" },
+  { code: "RU", name: "Russia" }, { code: "RW", name: "Rwanda" }, { code: "KN", name: "Saint Kitts and Nevis" },
+  { code: "LC", name: "Saint Lucia" }, { code: "VC", name: "Saint Vincent and the Grenadines" }, { code: "WS", name: "Samoa" },
+  { code: "SM", name: "San Marino" }, { code: "ST", name: "Sao Tome and Principe" }, { code: "SA", name: "Saudi Arabia" },
+  { code: "SN", name: "Senegal" }, { code: "RS", name: "Serbia" }, { code: "SC", name: "Seychelles" },
+  { code: "SL", name: "Sierra Leone" }, { code: "SG", name: "Singapore" }, { code: "SK", name: "Slovakia" },
+  { code: "SI", name: "Slovenia" }, { code: "SB", name: "Solomon Islands" }, { code: "SO", name: "Somalia" },
+  { code: "ZA", name: "South Africa" }, { code: "KR", name: "South Korea" }, { code: "SS", name: "South Sudan" },
+  { code: "ES", name: "Spain" }, { code: "LK", name: "Sri Lanka" }, { code: "SD", name: "Sudan" },
+  { code: "SR", name: "Suriname" }, { code: "SE", name: "Sweden" }, { code: "CH", name: "Switzerland" },
+  { code: "SY", name: "Syria" }, { code: "TW", name: "Taiwan" }, { code: "TJ", name: "Tajikistan" },
+  { code: "TZ", name: "Tanzania" }, { code: "TH", name: "Thailand" }, { code: "TL", name: "Timor-Leste" },
+  { code: "TG", name: "Togo" }, { code: "TO", name: "Tonga" }, { code: "TT", name: "Trinidad and Tobago" },
+  { code: "TN", name: "Tunisia" }, { code: "TR", name: "Turkey" }, { code: "TM", name: "Turkmenistan" },
+  { code: "TV", name: "Tuvalu" }, { code: "UG", name: "Uganda" }, { code: "UA", name: "Ukraine" },
+  { code: "AE", name: "United Arab Emirates" }, { code: "GB", name: "United Kingdom" }, { code: "US", name: "United States" },
+  { code: "UY", name: "Uruguay" }, { code: "UZ", name: "Uzbekistan" }, { code: "VU", name: "Vanuatu" },
+  { code: "VE", name: "Venezuela" }, { code: "VN", name: "Vietnam" }, { code: "YE", name: "Yemen" },
+  { code: "ZM", name: "Zambia" }, { code: "ZW", name: "Zimbabwe" },
+];
 
 function generateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -56,6 +125,10 @@ export default function CreateVotePage() {
   const [newVoterName, setNewVoterName] = useState("");
   const [newVoterEmail, setNewVoterEmail] = useState("");
   const [quorum, setQuorum] = useState("");
+  const [reminderHoursBefore, setReminderHoursBefore] = useState("");
+  const [allowedCountries, setAllowedCountries] = useState<string[]>([]);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -63,6 +136,8 @@ export default function CreateVotePage() {
   const [showBulkInput, setShowBulkInput] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [uploadingOptions, setUploadingOptions] = useState<Set<string>>(new Set());
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
 
   function applyTemplate(t: ElectionTemplate) {
     setTitle(t.titlePlaceholder);
@@ -90,6 +165,7 @@ export default function CreateVotePage() {
       name: newVoterName.trim(),
       email: newVoterEmail.trim(),
       code: generateCode(),
+      weight: "1",
     }]);
     setNewVoterName("");
     setNewVoterEmail("");
@@ -101,7 +177,7 @@ export default function CreateVotePage() {
       const parts = line.split(",").map((p) => p.trim());
       const email = parts.find((p) => p.includes("@")) || parts[0];
       const name = parts.find((p) => !p.includes("@")) || email.split("@")[0];
-      return { id: crypto.randomUUID(), name, email, code: generateCode() };
+      return { id: crypto.randomUUID(), name, email, code: generateCode(), weight: "1" };
     });
     setVoters([...voters, ...newVoters]);
     setBulkEmails("");
@@ -144,6 +220,7 @@ export default function CreateVotePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (uploadingOptions.size > 0) return;
     setError("");
     setSubmitting(true);
     try {
@@ -155,6 +232,8 @@ export default function CreateVotePage() {
         startsAt: toISO(startDate),
         closesAt: toISO(endDate),
         quorum: quorum ? parseInt(quorum) : undefined,
+        reminderHoursBefore: reminderHoursBefore ? parseInt(reminderHoursBefore) : undefined,
+        allowedCountries: allowedCountries.length > 0 ? allowedCountries : undefined,
         options: options
           .filter((o) => o.label.trim())
           .map((o) => ({
@@ -164,7 +243,7 @@ export default function CreateVotePage() {
             bio: o.bio.trim() || undefined,
             image_url: o.image_url.trim() || undefined,
           })),
-        voters: voterAccess === "email" ? voters.map((v) => ({ name: v.name, email: v.email, code: v.code })) : undefined,
+        voters: voterAccess === "email" ? voters.map((v) => ({ name: v.name, email: v.email, code: v.code, weight: v.weight ? parseFloat(v.weight) : undefined })) : undefined,
       });
       router.push(`/dashboard/votes/${poll.id}`);
     } catch (err) {
@@ -182,7 +261,7 @@ export default function CreateVotePage() {
     <div className="mx-auto max-w-3xl space-y-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Create a Vote</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Create Poll</h1>
           <p className="mt-1 text-sm text-slate-500">Set up a new election or poll for your group.</p>
         </div>
         <button
@@ -390,34 +469,66 @@ export default function CreateVotePage() {
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Photo</label>
                         <div className="flex items-center gap-3">
-                          {option.image_url && (
+                          {option.image_url ? (
                             <img src={option.image_url} alt="" className="h-12 w-12 rounded-full object-cover border border-slate-200 shrink-0" />
-                          )}
-                          <label className="flex-1 cursor-pointer">
-                            <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm text-slate-500 hover:border-blue-400 hover:text-blue-800 transition-colors">
-                              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                          ) : (
+                            <div className="h-12 w-12 shrink-0 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center">
+                              <svg className="h-5 w-5 text-slate-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                               </svg>
-                              <span>{option.image_url ? "Change photo" : "Upload photo"}</span>
+                            </div>
+                          )}
+                          <label className={`flex-1 ${uploadingOptions.has(option.id) ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                            <div className={`flex items-center gap-2 rounded-lg border border-dashed px-3 py-2.5 text-sm transition-colors ${
+                              uploadingOptions.has(option.id)
+                                ? "border-blue-200 bg-blue-50 text-blue-400"
+                                : "border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-800"
+                            }`}>
+                              {uploadingOptions.has(option.id) ? (
+                                <>
+                                  <svg className="h-4 w-4 shrink-0 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                  <span>Uploading…</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                                  </svg>
+                                  <span>{option.image_url ? "Change photo" : "Upload photo"}</span>
+                                </>
+                              )}
                             </div>
                             <input
                               type="file"
                               accept="image/*"
                               className="sr-only"
+                              disabled={uploadingOptions.has(option.id)}
                               onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
+                                if (file.size > 5 * 1024 * 1024) {
+                                  setUploadErrors((prev) => ({ ...prev, [option.id]: "File must be under 5 MB" }));
+                                  e.target.value = "";
+                                  return;
+                                }
+                                setUploadErrors((prev) => { const n = { ...prev }; delete n[option.id]; return n; });
+                                setUploadingOptions((prev) => new Set(prev).add(option.id));
                                 try {
                                   const url = await uploadImage(file);
                                   updateOption(option.id, "image_url", url);
-                                } catch {
-                                  // silently ignore upload errors in the UI
+                                } catch (err) {
+                                  setUploadErrors((prev) => ({ ...prev, [option.id]: err instanceof Error ? err.message : "Upload failed" }));
+                                } finally {
+                                  setUploadingOptions((prev) => { const n = new Set(prev); n.delete(option.id); return n; });
                                 }
                                 e.target.value = "";
                               }}
                             />
                           </label>
-                          {option.image_url && (
+                          {option.image_url && !uploadingOptions.has(option.id) && (
                             <button
                               type="button"
                               onClick={() => updateOption(option.id, "image_url", "")}
@@ -429,6 +540,9 @@ export default function CreateVotePage() {
                             </button>
                           )}
                         </div>
+                        {uploadErrors[option.id] && (
+                          <p className="mt-1.5 text-xs text-red-600">{uploadErrors[option.id]}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Campaign Message</label>
@@ -497,6 +611,78 @@ export default function CreateVotePage() {
               />
               <p className="mt-1 text-xs text-slate-400">Auto-close the poll once this many votes are cast.</p>
             </div>
+            <div>
+              <label htmlFor="reminderHoursBefore" className="block text-sm font-medium text-slate-700">
+                Voter reminder <span className="text-slate-400">(optional)</span>
+              </label>
+              <input
+                id="reminderHoursBefore"
+                type="number"
+                min={1}
+                value={reminderHoursBefore}
+                onChange={(e) => setReminderHoursBefore(e.target.value)}
+                placeholder="e.g. 24"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-slate-400">Send a reminder email this many hours before close (email-access polls only).</p>
+            </div>
+          </div>
+
+          {/* Geo-restriction */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowCountryPicker(!showCountryPicker)}
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-500"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+              </svg>
+              {allowedCountries.length > 0
+                ? `Geo-restriction: ${allowedCountries.length} countr${allowedCountries.length === 1 ? "y" : "ies"} allowed`
+                : "Restrict by country (optional)"}
+            </button>
+
+            {showCountryPicker && (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <p className="text-xs text-slate-500">Only voters from the selected countries can cast a vote. Leave all unchecked to allow any country.</p>
+                <input
+                  type="text"
+                  placeholder="Search countries…"
+                  value={countrySearch}
+                  onChange={(e) => setCountrySearch(e.target.value)}
+                  className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+                <div className="max-h-56 overflow-y-auto grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                  {COMMON_COUNTRIES.filter((c) => c.name.toLowerCase().includes(countrySearch.toLowerCase())).map((c) => (
+                    <label key={c.code} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allowedCountries.includes(c.code)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setAllowedCountries([...allowedCountries, c.code]);
+                          } else {
+                            setAllowedCountries(allowedCountries.filter((x) => x !== c.code));
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-800 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-700">{c.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {allowedCountries.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAllowedCountries([])}
+                    className="text-xs text-slate-400 hover:text-red-500"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -602,15 +788,16 @@ export default function CreateVotePage() {
 
             {voters.length > 0 && (
               <div className="space-y-2">
-                <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_auto_auto] gap-3 px-3 text-xs font-medium uppercase tracking-wider text-slate-400">
+                <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_auto_auto_auto] gap-3 px-3 text-xs font-medium uppercase tracking-wider text-slate-400">
                   <span>Name</span>
                   <span>Email</span>
                   <span className="w-28 text-center">Voting Code</span>
+                  <span className="w-16 text-center">Weight</span>
                   <span className="w-20" />
                 </div>
                 <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
                   {voters.map((voter) => (
-                    <div key={voter.id} className="flex flex-col gap-2 px-3 py-3 sm:grid sm:grid-cols-[1fr_1fr_auto_auto] sm:items-center sm:gap-3">
+                    <div key={voter.id} className="flex flex-col gap-2 px-3 py-3 sm:grid sm:grid-cols-[1fr_1fr_auto_auto_auto] sm:items-center sm:gap-3">
                       <div>
                         <p className="text-sm font-medium text-slate-900">{voter.name}</p>
                         <p className="text-xs text-slate-500 sm:hidden">{voter.email}</p>
@@ -635,6 +822,16 @@ export default function CreateVotePage() {
                             </svg>
                           )}
                         </button>
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={voter.weight}
+                          onChange={(e) => setVoters(voters.map((v) => v.id === voter.id ? { ...v, weight: e.target.value } : v))}
+                          className="w-16 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-center text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                        />
                       </div>
                       <div className="flex items-center gap-1 self-end sm:self-auto w-20 justify-end">
                         <button type="button" onClick={() => regenerateCode(voter.id)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
@@ -690,10 +887,10 @@ export default function CreateVotePage() {
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || uploadingOptions.size > 0}
             className="rounded-lg bg-blue-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-900 disabled:opacity-60"
           >
-            {submitting ? "Creating…" : "Create Vote"}
+            {submitting ? "Creating…" : uploadingOptions.size > 0 ? "Uploading photos…" : "Create Poll"}
           </button>
         </div>
       </form>

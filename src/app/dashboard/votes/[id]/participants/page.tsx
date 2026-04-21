@@ -46,12 +46,12 @@ export default function ParticipantsPage() {
   const [newEmail, setNewEmail] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [addError, setAddError] = useState("");
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [copiedLinkId, setCopiedLinkId] = useState<number | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    listParticipants(Number(pollId))
+    listParticipants(pollId)
       .then(({ participants }) => setParticipants(participants))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -74,7 +74,7 @@ export default function ParticipantsPage() {
     setAddError("");
     const code = generateCode();
     try {
-      const { participant } = await addParticipant(Number(pollId), {
+      const { participant } = await addParticipant(pollId, {
         name: newName.trim(),
         email: newEmail.trim(),
         code,
@@ -88,19 +88,19 @@ export default function ParticipantsPage() {
     }
   }
 
-  async function handleRegenerateCode(participantId: number) {
+  async function handleRegenerateCode(participantId: string) {
     const code = generateCode();
     try {
-      const { participant } = await regenerateParticipantCode(Number(pollId), participantId, code);
+      const { participant } = await regenerateParticipantCode(pollId, participantId, code);
       setParticipants((prev) => prev.map((p) => (p.id === participantId ? participant : p)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to regenerate code");
     }
   }
 
-  async function handleRemoveParticipant(participantId: number) {
+  async function handleRemoveParticipant(participantId: string) {
     try {
-      await removeParticipant(Number(pollId), participantId);
+      await removeParticipant(pollId, participantId);
       setParticipants((prev) => prev.filter((p) => p.id !== participantId));
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -119,20 +119,20 @@ export default function ParticipantsPage() {
     setSelectedIds(new Set());
   }
 
-  function copyCode(id: number, code: string) {
+  function copyCode(id: string, code: string) {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   }
 
-  function copyVotingLink(id: number) {
+  function copyVotingLink(id: string) {
     const url = `${window.location.origin}/vote/${pollId}`;
     navigator.clipboard.writeText(url);
     setCopiedLinkId(id);
     setTimeout(() => setCopiedLinkId(null), 2000);
   }
 
-  function toggleSelect(id: number) {
+  function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
